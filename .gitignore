@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+# results live outside the repo (see config.RESULTS_ROOT); ignore any strays
+results/
+figures/*.pdf
+figures/*.png
+*.npy
+*.npz
+slurm-*.out
+*.log
