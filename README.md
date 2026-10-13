@@ -8,8 +8,6 @@
 
 NSF AI Institute for Advances in Optimization (AI4OPT), Georgia Institute of Technology
 
-![Python](https://img.shields.io/badge/python-3.9%2B-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
 
 </div>
 
