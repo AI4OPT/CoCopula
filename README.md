@@ -36,47 +36,50 @@ fleet-level forecast from the site-level forecasts alone, in two stages:
 
 ## Repository structure
 
-The code is a handful of flat, self-contained files:
-
-| File | Content |
-|---|---|
-| `data.py` | Loading the site-level and fleet-level arrays and the context features |
-| `copula.py` | PIT values, Gaussian-copula fit, Monte Carlo aggregation |
-| `conformal.py` | CQR and CACP calibration |
-| `metrics.py` | PICP, AIW and Winkler score |
-| `run_aggregation.py` | **Command:** site forecasts → fleet forecast |
-| `run_calibration.py` | **Command:** fleet forecast → calibrated forecast + metrics |
+```
+CoCopula/
+├── cocopula/                 the method
+│   ├── data.py               loading the arrays and the context features
+│   ├── copula.py             PIT values, Gaussian-copula fit, Monte Carlo aggregation
+│   ├── conformal.py          CQR and CACP calibration
+│   └── metrics.py            PICP, AIW and Winkler score
+├── scripts/                  the three commands
+│   ├── download_data.py      download the PERFORM data and build the arrays
+│   ├── run_aggregation.py    site forecasts -> fleet forecast
+│   └── run_calibration.py    fleet forecast -> calibrated forecast + metrics
+├── covariates/               context features of CACP (not part of the NREL data)
+├── sites/                    site order used in the paper, one list per ISO
+├── requirements.txt
+└── LICENSE
+```
 
 ## Installation
 
 ```bash
 git clone https://github.com/AI4OPT/CoCopula.git
 cd CoCopula
-pip install -r requirements.txt        # numpy, scipy, pandas, scikit-learn
+pip install -r requirements.txt        # numpy, scipy, pandas, scikit-learn, h5py
 ```
 
 ## Data
 
-The experiments use the day-ahead solar forecasts of the
-[ARPA-E PERFORM dataset](https://data.openei.org/submissions/5772) (NREL) for MISO and SPP (2019)
-and ERCOT (2018). The scripts expect the forecasts as NumPy arrays in the following layout:
+**Source.** NREL / ARPA-E **PERFORM** dataset ([documentation](https://github.com/PERFORM-Forecasts/documentation),
+[AWS Open Data](https://registry.opendata.aws/arpa-e-perform/)): day-ahead solar forecasts and actuals for
+MISO and SPP (2019) and ERCOT (2018). The data is public; no account is needed.
 
-```
-DATA_DIR/
-├── MISO/solar/day-ahead/
-│   ├── sites/    actuals.npy (N, T)   marginals.npy (N, 99, T)   capacity.npy (N, 1)
-│   └── system/   actuals.npy (1, T)   marginals.npy (1, 99, T)   capacity.npy (1, 1)
-├── SPP/...   ERCOT/...
-└── cov/
-    └── <iso>_system_{solarity,time,historical}.npy        (1, k, T)
+**Download.** One command per ISO downloads the raw files and builds the arrays used by the code:
+
+```bash
+python scripts/download_data.py --iso MISO  --data_dir DATA_DIR   # ~6 GB
+python scripts/download_data.py --iso SPP   --data_dir DATA_DIR   # ~1.5 GB
+python scripts/download_data.py --iso ERCOT --data_dir DATA_DIR   # ~1.9 GB
 ```
 
-* `marginals` holds the 1%, 2%, …, 99% quantiles of each hour (T = 8760 hours).
-* `sites` are the individual solar sites (751 in MISO, 172 in SPP, 226 in ERCOT);
-  `system` is the fleet total and NREL's own fleet-level forecast (used only as a reference).
-* `cov` holds the context features of CACP: the normalized solar day (`solarity`), sine/cosine
-  encodings of hour, day of year and month (`time`), and the 24 hourly fleet generation values of
-  the previous day (`historical`).
+This writes `DATA_DIR/<ISO>/{site_actuals, site_quantiles, fleet_actuals, fleet_quantiles_nrel, fleet_capacity}.npy`
+(raw files are cached in `DATA_DIR/raw/`).
+
+**Included in this repository.** `covariates/` holds the CACP context features (not part of PERFORM) and
+`sites/` the site order used in the paper.
 
 ## Usage
 
@@ -86,8 +89,8 @@ to the paths you pass.
 ### 1. Aggregate the site forecasts
 
 ```bash
-python run_aggregation.py --data_dir DATA_DIR --iso MISO --dependence copula      --out out/miso_copula.npy
-python run_aggregation.py --data_dir DATA_DIR --iso MISO --dependence independent --out out/miso_independent.npy
+python scripts/run_aggregation.py --data_dir DATA_DIR --iso MISO --dependence copula      --out out/miso_copula.npy
+python scripts/run_aggregation.py --data_dir DATA_DIR --iso MISO --dependence independent --out out/miso_independent.npy
 ```
 
 | Option | Meaning |
@@ -101,12 +104,12 @@ Output: a `(99, 8760)` array of fleet-level quantiles.
 ### 2. Calibrate and evaluate
 
 ```bash
-python run_calibration.py --data_dir DATA_DIR --iso MISO --forecast out/miso_copula.npy --method cacp --out_dir out/
+python scripts/run_calibration.py --data_dir DATA_DIR --iso MISO --forecast out/miso_copula.npy --method cacp --out_dir out/
 ```
 
 | Option | Meaning |
 |---|---|
-| `--forecast` | `nrel` (NREL's fleet forecast) or a file produced by `run_aggregation.py` |
+| `--forecast` | `nrel` (NREL's fleet forecast) or a file produced by `scripts/run_aggregation.py` |
 | `--method` | `none` (no calibration), `cqr`, or `cacp` |
 
 The command prints PICP, AIW and Winkler score at the 90%, 80%, 70% and 60% levels and saves

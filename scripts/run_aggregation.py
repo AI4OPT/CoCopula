@@ -1,6 +1,6 @@
 """Aggregate site-level quantile forecasts into a fleet-level forecast (stage 1).
 
-    python run_aggregation.py --data_dir DATA --iso MISO --dependence copula --out out/miso_copula.npy
+    python scripts/run_aggregation.py --data_dir DATA --iso MISO --dependence copula --out out/miso_copula.npy
 
 --dependence copula       Gaussian copula.  Sigma is fitted on January-June and
                           used for January-July; it is then refitted each month
@@ -11,12 +11,15 @@ The output is a (99, 8760) array of fleet-level quantiles (same units as the dat
 """
 import argparse
 import os
+import sys
 import time
 
 import numpy as np
 
-from copula import aggregate, all_pits, fit_sigma, sample_uniforms
-from data import hours, load_sites
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repository root
+
+from cocopula.copula import aggregate, all_pits, fit_sigma, sample_uniforms
+from cocopula.data import hours, load_sites
 
 
 def main():

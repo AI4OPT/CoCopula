@@ -32,7 +32,8 @@ def pit(x, quantiles):
 
 def all_pits(actuals, quantiles):
     """PIT values of every site and hour, clipped to [1e-4, 0.999].  (N, T)."""
-    return np.stack([np.clip(pit(actuals[i], np.asarray(quantiles[i])), 0.0001, 0.999)
+    return np.stack([np.clip(pit(np.asarray(actuals[i], dtype=float),
+                                 np.asarray(quantiles[i], dtype=float)), 0.0001, 0.999)
                      for i in range(actuals.shape[0])])
 
 
@@ -68,7 +69,7 @@ def aggregate(quantiles, uniforms, start, stop, block=256):
     out = np.empty((n_levels, stop - start))
     for a in range(start, stop, block):
         b = min(a + block, stop)
-        Q = np.asarray(quantiles[:, :, a:b])                      # (N, 99, hours)
+        Q = np.asarray(quantiles[:, :, a:b], dtype=float)         # (N, 99, hours)
         total = 0.0
         for i in range(Q.shape[0]):                                # sum over sites
             y_lo, y_hi = Q[i][lo[i]], Q[i][hi[i]]                  # (S, hours)

@@ -1,8 +1,8 @@
 """Calibrate a fleet-level forecast (stage 2) and report PICP / AIW / WS.
 
-    python run_calibration.py --data_dir DATA --iso MISO --forecast out/miso_copula.npy --method cacp --out_dir out/
+    python scripts/run_calibration.py --data_dir DATA --iso MISO --forecast out/miso_copula.npy --method cacp --out_dir out/
 
---forecast   nrel  (NREL's own fleet forecast)  or  a (99, T) file from run_aggregation.py
+--forecast   nrel  (NREL's own fleet forecast)  or  a (99, T) file from scripts/run_aggregation.py
 --method     none  (no calibration), cqr, or cacp
 
 Protocol: hours with zero generation are dropped and everything is divided by
@@ -19,13 +19,16 @@ Outputs in --out_dir, prefixed <forecast name>_<method> (e.g. miso_copula_cacp, 
 """
 import argparse
 import os
+import sys
 
 import numpy as np
 import pandas as pd
 
-from conformal import cacp, cqr, no_calibration
-from data import YEAR, hours, load_context, load_system
-from metrics import mean_winkler, window_metrics
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repository root
+
+from cocopula.conformal import cacp, cqr, no_calibration
+from cocopula.data import YEAR, hours, load_context, load_system
+from cocopula.metrics import mean_winkler, window_metrics
 
 KERNELS = ["rbf", "laplacian"]
 GAMMAS = [0.5, 1.0, 2.0]
@@ -35,7 +38,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--data_dir", required=True)
     p.add_argument("--iso", required=True, choices=["MISO", "SPP", "ERCOT"])
-    p.add_argument("--forecast", required=True, help="'nrel' or a .npy file from run_aggregation.py")
+    p.add_argument("--forecast", required=True, help="'nrel' or a .npy file from scripts/run_aggregation.py")
     p.add_argument("--method", required=True, choices=["none", "cqr", "cacp"])
     p.add_argument("--out_dir", required=True)
     args = p.parse_args()
@@ -48,7 +51,7 @@ def main():
         Q, name = np.load(args.forecast), os.path.splitext(os.path.basename(args.forecast))[0]
     day = actuals > 0
     y, Q, times = actuals[day] / capacity, Q[:, day] / capacity, hours(args.iso)[day]
-    X = load_context(args.data_dir, args.iso)[day] if args.method == "cacp" else None
+    X = load_context(args.iso)[day] if args.method == "cacp" else None
 
     # ---- rolling 7-day test windows from 1 July
     year = YEAR[args.iso]

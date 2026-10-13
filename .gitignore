@@ -1,9 +1,10 @@
 __pycache__/
 *.py[cod]
 .ipynb_checkpoints/
-# no data or results in the repository
+# no data or results in the repository (except the covariates/ folder)
 *.npy
 *.npz
 *.csv
+!covariates/*.npy
 out/
 results/

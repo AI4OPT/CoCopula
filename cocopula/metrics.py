@@ -7,7 +7,7 @@ averaged over the windows, every window weighted equally.
 import numpy as np
 import pandas as pd
 
-from conformal import interval_columns
+from .conformal import interval_columns
 
 COVERAGES = (0.9, 0.8, 0.7, 0.6)
 
