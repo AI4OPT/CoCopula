@@ -153,11 +153,11 @@ out/miso_copula_cacp_metrics.csv     PICP / AIW / WS per target coverage
 If you use this code, please cite:
 
 ```bibtex
-@article{moradi2026cocopula,
-  title   = {CoCopula: Conformal Calibration and Copula Aggregation for Reliable Renewable Energy Forecasting},
-  author  = {Moradi, Alireza and Tanneau, Mathieu and Zandehshahvar, Reza and Van Hentenryck, Pascal},
-  journal = {IEEE Access},
-  year    = {2026}
+@article{moradi2026copula,
+  title={Copula-based aggregation and context-aware conformal prediction for reliable renewable energy forecasting},
+  author={Moradi, Alireza and Tanneau, Mathieu and Zandehshahvar, Reza and Van Hentenryck, Pascal},
+  journal={arXiv preprint arXiv:2602.02583},
+  year={2026}
 }
 ```
 
