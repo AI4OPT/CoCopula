@@ -20,7 +20,7 @@ farms) but have **no forecasting model for the fleet as a whole**. CoCopula buil
 fleet-level forecast from the site-level forecasts alone, in two stages:
 
 <p align="center">
-  <img src="figures/overview.png" alt="CoCopula overview" width="100%">
+  <img src="figures/cocopula.gif" alt="CoCopula: site forecasts, dependence, aggregation, CACP weighting, calibration" width="100%">
 </p>
 
 1. **Aggregation.** A Gaussian copula captures the dependence between the forecast errors of the
@@ -45,7 +45,7 @@ CoCopula/
 │   └── run.py                run one method: aggregation -> calibration -> metrics
 ├── covariates/               context features of CACP (not part of the NREL data)
 ├── sites/                    site order used in the paper, one list per ISO
-├── figures/                  overview figure of the README
+├── figures/                  overview animation of the README
 ├── requirements.txt
 └── LICENSE
 ```
