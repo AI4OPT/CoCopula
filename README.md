@@ -42,11 +42,11 @@ CoCopula/
 │   ├── data.py               loading the arrays and the context features
 │   ├── copula.py             PIT values, Gaussian-copula fit, Monte Carlo aggregation
 │   ├── conformal.py          CQR and CACP calibration
-│   └── metrics.py            PICP, AIW and Winkler score
-├── scripts/                  the three commands
+│   ├── metrics.py            PICP, AIW and Winkler score
+│   └── pipeline.py           the two stages over a year of data
+├── scripts/
 │   ├── download_data.py      download the PERFORM data and build the arrays
-│   ├── run_aggregation.py    site forecasts -> fleet forecast
-│   └── run_calibration.py    fleet forecast -> calibrated forecast + metrics
+│   └── run.py                run one method: aggregation -> calibration -> metrics
 ├── covariates/               context features of CACP (not part of the NREL data)
 ├── sites/                    site order used in the paper, one list per ISO
 ├── requirements.txt
@@ -77,62 +77,37 @@ python scripts/download_data.py --iso ERCOT --data_dir DATA_DIR   # ~1.9 GB
 
 This writes `DATA_DIR/<ISO>/{site_actuals, site_quantiles, fleet_actuals, fleet_quantiles_nrel, fleet_capacity}.npy`
 (raw files are cached in `DATA_DIR/raw/`).
+Running MISO needs about 6 GB of memory (its site forecasts are 5.2 GB).
 
 **Included in this repository.** `covariates/` holds the CACP context features (not part of PERFORM) and
 `sites/` the site order used in the paper.
 
 ## Usage
 
-Each command runs one method on one ISO. Nothing is written inside the repository; all outputs go
-to the paths you pass.
-
-### 1. Aggregate the site forecasts
+One command runs a method on one ISO: it aggregates the site forecasts (if the method needs it),
+calibrates the fleet forecast (if `--calibration` is given), and reports the metrics.
 
 ```bash
-python scripts/run_aggregation.py --data_dir DATA_DIR --iso MISO --dependence copula      --out out/miso_copula.npy
-python scripts/run_aggregation.py --data_dir DATA_DIR --iso MISO --dependence independent --out out/miso_independent.npy
+python scripts/run.py --data_dir DATA_DIR --iso MISO --aggregation copula --calibration cacp --out_dir out/
 ```
 
-| Option | Meaning |
-|---|---|
-| `--dependence copula` | Gaussian copula, refitted monthly on all earlier data |
-| `--dependence independent` | Sites treated as independent (Σ = I) |
-| `--n_samples`, `--seed` | Monte Carlo sample size (default 1000) and seed (default 42) |
-
-Output: a `(99, 8760)` array of fleet-level quantiles.
-
-### 2. Calibrate and evaluate
-
-```bash
-python scripts/run_calibration.py --data_dir DATA_DIR --iso MISO --forecast out/miso_copula.npy --method cacp --out_dir out/
-```
-
-| Option | Meaning |
-|---|---|
-| `--forecast` | `nrel` (NREL's fleet forecast) or a file produced by `scripts/run_aggregation.py` |
-| `--method` | `none` (no calibration), `cqr`, or `cacp` |
-
-The command prints PICP, AIW and Winkler score at the 90%, 80%, 70% and 60% levels and saves
-
-```
-out/miso_copula_cacp_quantiles.npy   calibrated quantiles of every test hour, (T_test, 99)
-out/miso_copula_cacp_times.npy       their time stamps
-out/miso_copula_cacp_metrics.csv     PICP / AIW / WS per target coverage
-```
-
-### Methods of the paper
-
-| Method in the paper | `--forecast` | `--method` |
+| Method | `--aggregation` | `--calibration` |
 |---|---|---|
-| NREL † | `nrel` | `none` |
+| NREL † | `nrel` | – |
 | NREL+CQR † | `nrel` | `cqr` |
 | NREL+CACP † | `nrel` | `cacp` |
-| Ind | `<iso>_independent.npy` | `none` |
-| Copula | `<iso>_copula.npy` | `none` |
-| Copula+CQR | `<iso>_copula.npy` | `cqr` |
-| **CoCopula** | `<iso>_copula.npy` | `cacp` |
+| Ind | `independent` | – |
+| Copula | `copula` | – |
+| Copula+CQR | `copula` | `cqr` |
+| **CoCopula** | `copula` | `cacp` |
 
-† NREL's own fleet-level forecasts, a reference that is not available in the setting studied.
+– : leave the argument out. † NREL's own fleet-level forecast, a reference that is not available in
+the setting studied. `--iso` is `MISO`, `SPP` or `ERCOT`.
+
+The command prints PICP, AIW and Winkler score at the 90%, 80%, 70% and 60% levels and saves
+`out/<iso>_<aggregation>[_<calibration>]_{quantiles,times,metrics}` (calibrated quantiles of every
+test hour, their time stamps, and the metrics). The aggregated fleet forecast is saved as
+`out/<iso>_<aggregation>.npy` and reused by later runs, so the copula is fitted only once per ISO.
 
 ## Experimental protocol
 

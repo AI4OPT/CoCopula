@@ -37,9 +37,10 @@ def _load(data_dir, iso, name, **kw):
 def load_sites(data_dir, iso):
     """Site-level actuals (N, T) and quantile forecasts (N, 99, T).
 
-    The forecasts are memory-mapped (2.6 GB for MISO) and read in blocks.
+    The forecasts are read fully into memory (5.2 GB for MISO, 1.2 GB for SPP,
+    1.6 GB for ERCOT); one sequential read is much faster than memory-mapping.
     """
-    return _load(data_dir, iso, "site_actuals"), _load(data_dir, iso, "site_quantiles", mmap_mode="r")
+    return _load(data_dir, iso, "site_actuals"), _load(data_dir, iso, "site_quantiles")
 
 
 def load_system(data_dir, iso):

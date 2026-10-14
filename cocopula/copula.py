@@ -54,10 +54,11 @@ def sample_uniforms(sigma, n_samples=1000, seed=42):
     return norm.cdf(z)
 
 
-def aggregate(quantiles, uniforms, start, stop, block=256):
+def aggregate(quantiles, uniforms, start, stop):
     """Fleet-level quantiles for hours start..stop-1.  Returns (99, stop - start).
 
     quantiles: (N, 99, T) site forecasts, uniforms: (S, N) copula sample.
+    The sites are summed in site order.
     """
     n_levels = len(LEVELS)
     # inverse-CDF interpolation constants; they depend only on the uniforms
@@ -66,13 +67,9 @@ def aggregate(quantiles, uniforms, start, stop, block=256):
     dx = LEVELS[hi] - LEVELS[lo]
     du = uniforms.T - LEVELS[lo]
 
-    out = np.empty((n_levels, stop - start))
-    for a in range(start, stop, block):
-        b = min(a + block, stop)
-        Q = np.asarray(quantiles[:, :, a:b], dtype=float)         # (N, 99, hours)
-        total = 0.0
-        for i in range(Q.shape[0]):                                # sum over sites
-            y_lo, y_hi = Q[i][lo[i]], Q[i][hi[i]]                  # (S, hours)
-            total = total + ((y_hi - y_lo) / dx[i][:, None] * du[i][:, None] + y_lo)
-        out[:, a - start:b - start] = np.quantile(total, LEVELS, axis=0)
-    return out
+    total = np.zeros((uniforms.shape[0], stop - start))                   # (S, hours)
+    for i in range(quantiles.shape[0]):
+        Q = np.asarray(quantiles[i, :, start:stop], dtype=float)          # (99, hours)
+        y_lo, y_hi = Q[lo[i]], Q[hi[i]]                                   # (S, hours)
+        total += (y_hi - y_lo) / dx[i][:, None] * du[i][:, None] + y_lo
+    return np.quantile(total, LEVELS, axis=0)
