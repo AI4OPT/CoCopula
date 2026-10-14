@@ -19,13 +19,9 @@ System operators often receive **probabilistic forecasts for individual sites** 
 farms) but have **no forecasting model for the fleet as a whole**. CoCopula builds a reliable
 fleet-level forecast from the site-level forecasts alone, in two stages:
 
-```
- site-level quantile        ┌──────────────────────┐   fleet-level   ┌──────────────────────────┐   calibrated fleet
- forecasts (N sites)  ───►  │ 1. Copula aggregation │ ──► forecast ──► │ 2. Context-aware conformal│ ──► forecast
-                            │    (cross-site        │                 │    calibration (CACP)     │   (99 quantiles)
-                            │     dependence)       │                 │                           │
-                            └──────────────────────┘                  └──────────────────────────┘
-```
+<p align="center">
+  <img src="figures/overview.png" alt="CoCopula overview" width="100%">
+</p>
 
 1. **Aggregation.** A Gaussian copula captures the dependence between the forecast errors of the
    sites. Monte Carlo samples from the copula are mapped through each site's predictive
@@ -49,6 +45,7 @@ CoCopula/
 │   └── run.py                run one method: aggregation -> calibration -> metrics
 ├── covariates/               context features of CACP (not part of the NREL data)
 ├── sites/                    site order used in the paper, one list per ISO
+├── figures/                  overview figure of the README
 ├── requirements.txt
 └── LICENSE
 ```
