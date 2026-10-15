@@ -116,7 +116,10 @@ test hour, their time stamps, and the metrics). The aggregated fleet forecast is
 * **Calibration.** July–December is split into consecutive 7-day test windows. For each window,
   the preceding 7 days form the validation set and all earlier hours the calibration set.
   CACP selects its kernel (RBF or Laplacian) and bandwidth γ ∈ {0.5, 1, 2} on the validation week
-  by the lowest mean Winkler score; the calibrator is then refitted on calibration + validation
+  by the lowest mean Winkler score. Both CQR and CACP use finite-sample conformal quantiles: CQR takes the
+  ⌈(n+1)(1−α)⌉-th smallest calibration score, and CACP the weighted quantile in which the test hour keeps
+  its own weight ψ(c_t, c_t) = 1 as a point mass at +∞ (the correction is +∞ when the weights of the
+  calibration hours never reach 1−α). The calibrator is then refitted on calibration + validation
   data and applied to the test window.
 * **Metrics.** PICP, AIW and Winkler score are computed within each test window and averaged over
   the windows.
@@ -126,8 +129,8 @@ test hour, their time stamps, and the metrics). The aggregated fleet forecast is
 If you use this code, please cite:
 
 ```bibtex
-@article{moradi2026copula,
-  title={Copula-based aggregation and context-aware conformal prediction for reliable renewable energy forecasting},
+@article{moradi2026cocopula,
+  title={{CoCopula}: Conformal Calibration and Copula Aggregation for Reliable Renewable Energy Forecasting},
   author={Moradi, Alireza and Tanneau, Mathieu and Zandehshahvar, Reza and Van Hentenryck, Pascal},
   journal={arXiv preprint arXiv:2602.02583},
   year={2026}

@@ -1,15 +1,22 @@
-"""Stage 2: conformal calibration of a fleet-level quantile forecast.
+"""Stage 2: conformal calibration of a fleet-level quantile forecast (Section III-C of the paper).
 
-Both methods widen (or narrow) each central interval [q_{a/2}, q_{1-a/2}] by a
-correction s computed from the conformity scores of past hours
+Both methods widen (or narrow) each central interval [q^{a/2}_t, q^{1-a/2}_t] of a test hour t
+by a correction s_hat computed from the conformity scores of the calibration hours tau
 
-    s_t = max(q_{a/2,t} - y_t,  y_t - q_{1-a/2,t}).
+    s_tau = max(q^{a/2}_tau - y_tau,  y_tau - q^{1-a/2}_tau),
 
-    CQR   s = (1 - a) empirical quantile of the scores
-    CACP  s = (1 - a) weighted quantile of the scores, with weights
-          psi(c_t, c_tau) = exp(-gamma * ||c_t - c_tau||)   (RBF: squared L2,
-          Laplacian: L1) between the context of the test hour and of each
-          calibration hour.
+    C~_t = [q^{a/2}_t - s_hat,  q^{1-a/2}_t + s_hat].
+
+    CQR   finite-sample conformal quantile of the n calibration scores:
+              s_hat = s_(k),   k = ceil((n + 1)(1 - a)),   s_hat = +inf if k > n.
+    CACP  finite-sample weighted quantile.  Each calibration hour gets the weight
+              w_tau = psi(c_t, c_tau) = exp(-gamma * ||c_t - c_tau||)
+          (RBF: squared L2, Laplacian: L1) between the contexts of the test and
+          calibration hours.  The test hour keeps its own weight w_t = psi(c_t, c_t) = 1
+          as a point mass at +inf, so
+              p_tau = w_tau / (sum_tau' w_tau' + w_t),
+              s_hat = inf{ s in {s_tau} : sum_{s_tau <= s} p_tau >= 1 - a },
+          and s_hat = +inf if no calibration score satisfies the condition.
 
 Every pair of quantiles (2%, 4%, ..., 98% central intervals) is calibrated;
 the result is made monotone and clipped to [0, 1] (capacity-normalized).
@@ -43,46 +50,50 @@ def no_calibration(Q_test):
 
 
 def cqr(y_cal, Q_cal, Q_test):
-    """Conformalized quantile regression.  Q: (99, T)  ->  (T_test, 99)."""
+    """Conformalized quantile regression with the finite-sample quantile.  Q: (99, T)  ->  (T_test, 99).
+
+    s = the ceil((n + 1)(1 - a))-th smallest calibration score (+inf if that exceeds n).
+    """
     P = Q_test.T.copy()
     for a in ALPHAS:
         c = round(1 - a, 2)
         li, ui = interval_columns(c)
-        s = np.quantile(scores(y_cal, Q_cal, li, ui), c)
+        sc = np.sort(scores(y_cal, Q_cal, li, ui)); n = sc.size
+        k = int(np.ceil((n + 1) * c))
+        s = sc[k - 1] if k <= n else np.inf
         P[:, li] -= s
         P[:, ui] += s
     return finalize(P)
 
 
 def kernel_weights(X_cal, X_test, kernel, gamma):
-    """Normalized similarity of every calibration hour to every test hour.  (n_cal, T_test)."""
+    """Unnormalized similarity of every calibration hour to every test hour.  (n_cal, T_test)."""
     scaler = MinMaxScaler().fit(X_cal)
     A, B = scaler.transform(X_cal), scaler.transform(X_test)
     d = cdist(A, B, "sqeuclidean" if kernel == "rbf" else "cityblock")
-    W = np.exp(-gamma * d)
-    total = W.sum(axis=0)
-    W = np.where(total > 0, W / np.where(total > 0, total, 1), 1.0 / len(A))
-    return W
-
-
-def weighted_quantile(values_sorted, weights_sorted, q):
-    """Weighted quantile with a mid-point CDF, for one test hour."""
-    cdf = np.cumsum(weights_sorted) - 0.5 * weights_sorted
-    return np.interp(q, cdf / cdf[-1], values_sorted)
+    return np.exp(-gamma * d)
 
 
 def cacp(y_cal, Q_cal, X_cal, Q_test, X_test, kernel="rbf", gamma=1.0):
-    """Context-aware conformal prediction.  Q: (99, T), X: (T, k)  ->  (T_test, 99)."""
+    """Context-aware conformal prediction with the finite-sample weighted quantile.
+
+    The test hour carries its own weight psi(c_t, c_t) = 1 as a point mass at +inf
+    (Tibshirani et al., 2019): s_t = the smallest calibration score whose cumulative
+    normalized weight reaches 1 - a, or +inf if it never does.
+    Q: (99, T), X: (T, k)  ->  (T_test, 99).
+    """
     W = kernel_weights(X_cal, X_test, kernel, gamma)
+    norm = W.sum(axis=0) + 1.0                                   # + weight of the test point itself
     P = Q_test.T.copy()
     for a in ALPHAS:
         c = round(1 - a, 2)
         li, ui = interval_columns(c)
         s = scores(y_cal, Q_cal, li, ui)
         order = np.argsort(s)
-        Ws = W[order]
-        for t in range(P.shape[0]):
-            delta = weighted_quantile(s[order], Ws[:, t], c)
-            P[t, li] -= delta
-            P[t, ui] += delta
+        cdf = np.cumsum(W[order], axis=0) / norm                 # (n_cal, T_test)
+        reached = cdf >= c
+        idx = np.argmax(reached, axis=0)
+        delta = np.where(reached.any(axis=0), s[order][idx], np.inf)
+        P[:, li] -= delta
+        P[:, ui] += delta
     return finalize(P)
